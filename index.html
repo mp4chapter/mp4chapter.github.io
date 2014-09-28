@@ -1,0 +1,207 @@
+<!doctype html>
+<html id="dropin">
+<head>
+  <meta charset="utf-8" />
+  <title>チャプター形式変換（Web版）</title>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+  <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+  <style>
+  html, body {
+    min-height: 100%;
+  }
+
+  #dropin {
+    width: 100%;
+    min-height: 100%;
+    height: auto !important;
+    height: 100%;
+  }
+
+  p { 
+    margin-left: 20px;
+  }
+
+  samp em {
+    text-decoration: underline;
+  }
+  </style>
+</head>
+<body><div>
+<div style="width: 720px; margin-left: auto; margin-right: auto;">
+<h2>チャプター形式変換ツール（Web版）</h2>
+<div class="panel panel-default">
+  <div class="panel-body">
+    MP4等に埋め込むチャプターファイルの形式を相互変換、バリデート(無視するだけ)します。<br>
+    入力はNero形式、Apple形式、DVDのIFO(VTS_??_0.IFO)、Blu-rayのプレイリスト(*.mpls)、<br>
+    出力はNero形式、Apple形式に対応しています。
+  </div>
+</div>
+
+<h4>入力</h4>
+<p><strong>チャプターファイルをこのウィンドウにドラッグ＆ドロップしてください。</strong><br>
+複数のチャプターを一度にドラッグ＆ドロップすると、よしなに結合します。（まだ未実装）</p>
+
+<h4>変換結果ダウンロード</h4>
+<div id="input" class="alert alert-danger" role="alert">まだチャプターが読み込まれてません。</div>
+<div class="row">
+  <div class="col-md-4">
+    <a class="btn btn-default btn-block disabled" id="get_nero1">
+      <h4>Nero形式-1</h4>
+      <div class="text-center">
+        <span class="glyphicon glyphicon-file" style="font-size: 100px;"></span>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-4">
+    <a class="btn btn-default btn-block disabled" id="get_nero2">
+      <h4>Nero形式-2</h4>
+      <div class="text-center">
+        <span class="glyphicon glyphicon-file" style="font-size: 100px;"></span>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-4">
+    <a class="btn btn-default btn-block disabled" id="get_apple">
+      <h4>Apple形式</h4>
+      <div class="text-center">
+        <span class="glyphicon glyphicon-file" style="font-size: 100px;"></span>
+      </div>
+    </a>
+  </div>
+</div>
+
+<p><strong>Chromeでは枠からドラッグ＆ドロップで任意のフォルダへ保存できます。</strong></p>
+<p>Chrome, Firefoxではリンクをクリックしてダウンロードできます。</p>
+<p class="small">Safariではリンクをクリックしてからコピペしてください。。。</p>
+
+<div class="row hidden">
+  <div class="col-md-4">
+    <h5 id="get_nero1_title">Nero形式-1サンプル</h5>
+    <div id="get_nero1_content">
+      <samp><small>
+          00:00:00.000 タイトル1<br>
+          00:03:00.000 タイトル2<br>
+          00:06:00.000 タイトル3<br>
+          00:10:00.000 タイトル4
+      </small></samp>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <h5 id="get_nero2_title">Nero形式-2サンプル</h5>
+    <div id="get_nero2_content">
+      <samp><small>
+          CHAPTER01=00:00:00.000<br>
+          CHAPTER01NAME=タイトル1<br>
+          CHAPTER02=00:03:00.000<br>
+          CHAPTER02NAME=タイトル2<br>
+          CHAPTER03=00:06:00.000<br>
+          CHAPTER03NAME=タイトル3<br>
+          CHAPTER04=00:10:00.000<br>
+          CHAPTER04NAME=タイトル4<br>
+      </small></samp>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <h5 id="get_apple_title">Apple形式サンプル</h5>
+    <div id="get_apple_content">
+      <samp><small>
+          &lt;textstream version="1.1"&gt;<br>
+          &lt;textstreamheader&gt;<br>
+          &lt;textsampledescription&gt;<br>
+          &lt;/textsampledescription&gt;<br>
+          &lt;/textstreamheader&gt;<br>
+          &lt;textsample sampletime="00:00:00.000">タイトル1&lt;/textsample&gt;<br>
+          &lt;textsample sampletime="00:03:00.000">タイトル2&lt;/textsample&gt;<br>
+          &lt;textsample sampletime="00:06:00.000">タイトル3&lt;/textsample&gt;<br>
+          &lt;textsample sampletime="00:10:00.000">タイトル4&lt;/textsample&gt;<br>
+          &lt;/textstream&gt;
+      </small></samp>
+    </div>
+  </div>
+</div>
+
+<h4>MP4にチャプターを埋め込む方法</h4>
+
+<div class="panel panel-info">
+  <div class="panel-heading">mp4chaps (MP4v2 library)の場合</div>
+  <div class="panel-body">
+    入力はNero形式のどちらか。Nero形式とApple形式の両方が埋め込まれる。（mp4chapsが変換する）<br>
+    動画と同じフォルダに、動画と同名で拡張子を<code>.chapters.txt</code>としたチャプターを配置しておく。
+  </div>
+  <div class="panel-footer">
+    <samp>mp4chaps -i <em>movie.mp4</em></samp>
+  </div>
+</div>
+
+<div class="panel panel-info">
+  <div class="panel-heading">MP4Boxの場合</div>
+  <div class="panel-body">
+    入力はNero形式-2とApple形式。埋め込みたい方を用意する。<br>
+    両方は要らないときは、<code>-chap <em>chapter_nero2.txt</em></code>か<code>-add <em>chapter_apple.txt</em>:chap</code>のどっちかだけ。
+  </div>
+  <div class="panel-footer">
+    <samp>mp4box <em>movie.mp4</em> -chap <em>chapter_nero2.txt</em> -add <em>chapter_apple.txt</em>:chap</samp>
+  </div>
+</div>
+
+<div class="panel panel-info">
+  <div class="panel-heading">muxer, remuxer (L-SMASH)の場合</div>
+  <div class="panel-body">
+    入力はNero形式-1かNero形式-2。<br>
+    Apple形式は埋め込み先の動画がApple MP4かMOVの時には自動的に変換されて入る。（<a href="http://vfrmaniac.fushizen.eu/contents/lsmash_faq.html" target="_blank">参考</a>）
+  </div>
+  <div class="panel-footer">
+    <samp>muxer -i <em>mov.raw</em> -i <em>aud.aac</em> --chapter <em>chap.txt</em> --file-format m4a -o <em>out.mp4</em></samp><br>
+    <em>or</em><br>
+    <samp>remuxer -i <em>movie.mp4</em> --chapter <em>chap.txt</em> -o <em>out.mp4</em></samp>
+  </div>
+</div>
+
+<h4>補足事項</h4>
+<ul>
+  <li>文字コードはUTF-8のみ使用可能</li>
+  <li>0秒と動画の最後にチャプターを自動追加します（テキストのものは最初のみ）</li>
+  <li>VLCやMPCはNero形式、Apple製品全般はApple形式を必要とするようです</li>
+</ul>
+
+<hr size="1">
+<div class="text-center">
+  Copyright &copy; 2014 Rutice
+</div>
+
+</div>
+</div>
+
+<script src="chapter_converter.js"></script>
+<script src="//netdna.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script>
+  var ids = ['#get_nero1', '#get_nero2', '#get_apple'];
+  for (var i = 0; i < ids.length; ++i) {
+    var id = ids[i];
+    $(id).parent()
+      .data('toggle', 'popover')
+      .data('trigger', 'hover')
+      .data('placement', 'bottom')
+      .data('html', true)
+      .data('title', $(id + '_title').text())
+      .data('content', $(id + '_content').html())
+      .popover();
+  }
+
+  // Analytics
+  if (location.host == 'mp4chapter.github.io') {
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  } else {
+    window.ga = function() { }
+  }
+
+  ga('create', 'UA-31632283-2', 'auto');
+  ga('send', 'pageview');
+</script>
+</body>
+</html>
