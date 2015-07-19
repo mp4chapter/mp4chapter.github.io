@@ -120,7 +120,6 @@ function readMPLS(first, b) {
   for (var i = 0; i < itemCount; ++i) {
   	var len = parseInt16(b, itemOffset);
     var tmp = {};
-    console.log((itemStart+24).toString(16));
     tmp.startPTS = parseInt32(b, itemOffset + 14);
     tmp.endPTS = parseInt32(b, itemOffset + 18);
     tmp.duration = (tmp.endPTS - tmp.startPTS) / 45000.0;
@@ -357,13 +356,6 @@ function readFile(file, startTime) {
           .attr('draggable', true)
           .attr('download', file.name + '_' + t + '.txt')
           .attr('href', 'data:text/plain;base64,' + encodeURIComponent(Base64.encode(out[t])));
-
-        var popoverHtml
-          = '<samp><small>'
-          + out[t].replace(/</g, '&lt;').replace(/\r\n/g, '<br>')
-          + '</small></samp>'
-        $('#get_' + t).parent()
-          .attr('data-content', popoverHtml);
       }
       $('#input')
         .text(file.name + 'を読み込みました。')
