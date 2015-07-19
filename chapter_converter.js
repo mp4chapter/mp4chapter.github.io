@@ -356,7 +356,7 @@ function readFile(file, startTime) {
           .attr('target', '_blank')
           .attr('draggable', true)
           .attr('download', file.name + '_' + t + '.txt')
-          .attr('href', 'data:application/octet-stream,' + encodeURIComponent(out[t]));
+          .attr('href', 'data:text/plain;base64,' + encodeURIComponent(Base64.encode(out[t])));
 
         var popoverHtml
           = '<samp><small>'
@@ -412,7 +412,7 @@ $('#get_nero1,#get_nero2,#get_apple').on('dragstart', function(event) {
   var el = $(this);
   var fileName = el.attr('download');
   var content = el.attr('href');
-  event.originalEvent.dataTransfer.setData('DownloadURL', 'application/octet-stream:' + fileName + ':' + content);
+  event.originalEvent.dataTransfer.setData('DownloadURL', 'text/plain:' + fileName + ':' + content);
   ga('send', 'event', 'drag', this.id, '', 1);
 }).on('click', function(event) {
   ga('send', 'event', 'download', this.id, '', 1);
