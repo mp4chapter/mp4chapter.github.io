@@ -69,7 +69,6 @@ function parsePlaybackBCD(b, offset) {
   if (offset) {
     b = b.subarray(offset, offset + 4);
   }
-  console.log((b[3] & 0xC0).toString(16));
   var frameRate = (b[3] & 0xC0) == 0x40 ? 25 : 29.97;
   var ms = bcd2bin(b[3] & 0x3F) / frameRate;
   return bcd2bin(b[0]) * 3600 + bcd2bin(b[1]) * 60 + bcd2bin(b[2]) + ms;
@@ -103,6 +102,71 @@ var buff2str = function(buff){
   return str;
 }
 
+function readMPLS(first, b) {
+  var headerMPLS = 'MPLS0';
+  if (first.substring(0, 5) != headerMPLS) {
+    return undefined;
+  }
+  var o = [];
+  var itemStart = parseInt32(b, 8);
+  var chapStart = parseInt32(b, 12);
+  if (itemStart > b.length || chapStart > b.length) {
+    throw 'Invalid mpls file';
+  }
+  var itemCount = parseInt16(b, itemStart + 6);
+  var items = [];
+  // Play Itemを集める
+  var itemOffset = itemStart + 10;
+  for (var i = 0; i < itemCount; ++i) {
+  	var len = parseInt16(b, itemOffset);
+    var tmp = {};
+    console.log((itemStart+24).toString(16));
+    tmp.startPTS = parseInt32(b, itemOffset + 14);
+    tmp.endPTS = parseInt32(b, itemOffset + 18);
+    tmp.duration = (tmp.endPTS - tmp.startPTS) / 45000.0;
+    if (items.length > 0) {
+      tmp.startTime = items[items.length - 1].endTime;
+      tmp.endTime = tmp.startTime + tmp.duration;
+    } else {
+      tmp.startTime = 0.0;
+      tmp.endTime = tmp.duration;
+    }
+    items.push(tmp);
+    itemOffset += len + 2;
+  }
+  console.log(items);
+
+  // Chapterを集める
+  var chapLength = parseInt32(b, chapStart);
+  var chapCount = (chapLength - 2) / 14;
+  for (var i = 0; i < chapCount; ++i) {
+    var offset = chapStart + 6 + 4 + i * 14;
+    var itemNo = parseInt16(b, offset - 2);
+    if (itemNo >= items.length) {
+      throw 'Invalid mpls file';
+    }
+    var t = parseInt32(b, offset) - items[itemNo].startPTS;
+    console.log(t, itemNo);
+    if (t < 0) {
+      throw 'Invalid Chapter PTS.';
+    }
+    o.push({
+      time: t / 45000.0 + items[itemNo].startTime,
+      title: ''
+    });
+  }
+  var endTime = items[items.length - 1].endTime;
+  if (o.length > 0 && Math.abs(o[o.length - 1].time - endTime) < 2.0) {
+    o.pop(); // 最後に短いチャプターがある場合はいったん消す
+  }
+  o.push({
+    time: endTime,
+    title: 'MOVIE_END'
+  });
+  o.type = 'MPLS';
+  return o;
+}
+
 function readChapterFile(data) {
   var b = new Uint8Array(data);
   data = buff2str(b);
@@ -110,40 +174,27 @@ function readChapterFile(data) {
   var n = a.length;
   var first = a[0];
   var o = [];
-  var headerMPLS = 'MPLS0';
   var headerIFOVTS = 'DVDVIDEO-VTS';
-  var regNero1 = /^(\d+:\d+:\d+(?:\.\d+))[ \t](.+)$/;
+  var regNero1 = /^(\d+:\d+:\d+(?:\.\d+))[ \t](.*)$/;
   var regNero2_1 = /^CHAPTER\d+=(\d+:\d+:\d+(?:\.\d+))$/;
   var regNero2_2 = /^CHAPTER\d+NAME=(.+)$/;
   var regApple = /<textsample sampletime="(\d+:\d+:\d+(?:\.\d+))">([^<]+)<\/textsample>/;
   var m, m1, m2;
-  if (first.substring(0, 5) == headerMPLS) {
-    var chapStart = parseInt32(b, 12);
-    if (chapStart > b.length) {
-      throw 'Invalid mpls file';
+
+  var readFunc = [
+    readMPLS
+  ];
+  
+  var read_o;
+  for (var i = 0; i < readFunc.length; ++i) {
+    read_o = (readFunc[i])(first, b);
+    if (read_o) {
+      break;
     }
-    var startPTS = parseInt32(b, 82);
-    var endPTS = parseInt32(b.subarray(86, 86 + 4));
-    var endTime = (endPTS - startPTS) / 45000.0;
-    var chapLength = parseInt32(b.subarray(chapStart, chapStart + 4));
-    var chapCount = (chapLength - 2) / 14;
-    for (var i = 0; i < chapCount; ++i) {
-      var offset = chapStart + 6 + 4 + i * 14;
-      var t = parseInt32(b.subarray(offset, offset + 4)) - startPTS;
-      if (t < 0) {
-        throw 'Invalid Chapter PTS.';
-      }
-      o.push({
-        time: t / 45000.0,
-        title: ''
-      });
-    }
-    if (o.length > 0 && Math.abs(o[o.length - 1].time - endTime) > 0.5) {
-      o.push({
-        time: endTime,
-        title: 'MOVIE_END'
-      });
-    }
+  }
+
+  if (read_o) {
+    o = read_o;
   } else if (first.substring(0, 12) == headerIFOVTS) {
     // DVD IFO file
     var offsetToPCGI = 2048 * parseInt32(b, 0x00CC);
@@ -205,6 +256,7 @@ function readChapterFile(data) {
   } else {
     throw 'チャプターとして認識できませんでした。';
   }
+
   if (o.length == 0) {
     throw 'チャプターがありませんでした。';
   }
@@ -229,6 +281,11 @@ function readChapterFile(data) {
   return o;
 }
 
+function timeFromString(time_str) {
+  var a = time_str.split(':');
+  return 3600.0 * parseInt(a[0]) + 60.0 * parseInt(a[1]) + parseFloat(a[2]);
+}
+
 function convertTimes(chap) {
   var i, n = chap.length;
   for (i = 0; i < n; ++i) {
@@ -241,15 +298,24 @@ function convertTimes(chap) {
   }
 }
 
-function makeOutput(chap) {
+function makeOutput(chap, offset_str) {
   var out = {};
   var nero1 = [], nero2 = [], apple = [];
   apple.push('<textstream version="1.1">', '<textstreamheader>', '<textsampledescription>',
              '</textsampledescription>', '</textstreamheader>');
   var c, cnt;
-  var n = chap.length;
+  var i, n = chap.length;
+  if (offset_str) {
+    try {
+      var offset = timeFromString(offset_str);
+      for (i = 0; i < n; ++i) {
+        chap[i].time += offset;
+      }
+    } catch(e) {
+    }
+  }
   convertTimes(chap);
-  for (var i = 0; i < n; ++i) {
+  for (i = 0; i < n; ++i) {
     c = chap[i];
     nero1.push(c.time_str + ' ' + c.title);
     if (i < 100) {
@@ -263,9 +329,9 @@ function makeOutput(chap) {
   }
   apple.push('</textstream>');
 
-  out.nero1 = nero1.join("\n");
-  out.nero2 = nero2.join("\n");
-  out.apple = apple.join("\n");
+  out.nero1 = nero1.join("\r\n");
+  out.nero2 = nero2.join("\r\n");
+  out.apple = apple.join("\r\n");
   return out;
 }
 
@@ -276,19 +342,28 @@ function readFile(file, startTime) {
     var data = event.target.result;
     var size = data.length;
 
+    var dropTargets = ['nero1', 'nero2', 'apple'];
     try {
       var chap = readChapterFile(data);
-      var out = makeOutput(chap);
-      console.log(out.nero1, out.nero2, out.apple);
-      var targets = ['nero1', 'nero2', 'apple'];
-      for (var i = 0; i < 3; ++i) {
-        var t = targets[i];
+      var offset_str = $('#time_offset').val();
+      var out = makeOutput(chap, offset_str);
+      console.log(out.nero1);
+      
+      for (var i = 0; i < dropTargets.length; ++i) {
+        var t = dropTargets[i];
         $('#get_' + t)
           .removeClass('disabled')
           .attr('target', '_blank')
           .attr('draggable', true)
           .attr('download', file.name + '_' + t + '.txt')
           .attr('href', 'data:application/octet-stream,' + encodeURIComponent(out[t]));
+
+        var popoverHtml
+          = '<samp><small>'
+          + out[t].replace(/</g, '&lt;').replace(/\r\n/g, '<br>')
+          + '</small></samp>'
+        $('#get_' + t).parent()
+          .attr('data-content', popoverHtml);
       }
       $('#input')
         .text(file.name + 'を読み込みました。')
@@ -296,6 +371,11 @@ function readFile(file, startTime) {
         .addClass('alert-success');
     } catch(e) {
       // disable get_s
+      for (var i = 0; i < dropTargets.length; ++i) {
+        var t = dropTargets[i];
+        $('#get_' + t).addClass('disabled');
+      }
+      // show error
       $('#input')
         .text(file.name + 'の処理でエラーが発生しました。' + "\r\n" + e.toString())
         .removeClass('alert-success')
@@ -336,4 +416,13 @@ $('#get_nero1,#get_nero2,#get_apple').on('dragstart', function(event) {
   ga('send', 'event', 'drag', this.id, '', 1);
 }).on('click', function(event) {
   ga('send', 'event', 'download', this.id, '', 1);
+});
+
+$('#select_file_link').on('click', function(e) {
+  e.preventDefault();
+  $('#select_file').click();
+});
+
+$('#select_file').on('change', function() {
+  readFile(this.files[0]);
 });

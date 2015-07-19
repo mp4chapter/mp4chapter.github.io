@@ -2,7 +2,7 @@
 <html id="dropin">
 <head>
   <meta charset="utf-8" />
-  <title>チャプター形式変換（Web版）</title>
+  <title>MP4にチャプターを埋め込む方法・MP4チャプター形式変換ツール</title>
   <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
   <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
   <style>
@@ -24,11 +24,19 @@
   samp em {
     text-decoration: underline;
   }
+
+  #select_file {
+    display: none;
+  }
+
+  .addthis_native_toolbox {
+    max-height: 20px;
+  }
   </style>
 </head>
 <body><div>
 <div style="width: 720px; margin-left: auto; margin-right: auto;">
-<h2>チャプター形式変換ツール（Web版）</h2>
+<h2>MP4チャプター形式変換ツール</h2>
 <div class="panel panel-default">
   <div class="panel-body">
     MP4等に埋め込むチャプターファイルの形式を相互変換、バリデート(無視するだけ)します。<br>
@@ -37,9 +45,27 @@
   </div>
 </div>
 
+<div class="addthis_native_toolbox">
+  <a href="https://twitter.com/share" class="twitter-share-button">Tweet</a>
+  <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');
+  </script>
+
+<!-- head 内か、body 終了タグの直前に次のタグを貼り付けてください。 -->
+<script src="https://apis.google.com/js/platform.js" async defer>
+  {lang: 'ja'}
+</script>
+
+<!-- +1 ボタン を表示したい位置に次のタグを貼り付けてください。 -->
+<div class="g-plusone" data-size="medium"></div>
+
+<a href="http://b.hatena.ne.jp/entry/mp4chapter.github.io" class="hatena-bookmark-button" data-hatena-bookmark-layout="standard-balloon" data-hatena-bookmark-lang="ja" title="このエントリーをはてなブックマークに追加"><img src="https://b.hatena.ne.jp/images/entry-button/button-only@2x.png" alt="このエントリーをはてなブックマークに追加" width="20" height="20" style="border: none;" /></a><script type="text/javascript" src="https://b.hatena.ne.jp/js/bookmark_button.js" charset="utf-8" async="async"></script>
+</div>
+
 <h4>入力</h4>
-<p><strong>チャプターファイルをこのウィンドウにドラッグ＆ドロップしてください。</strong><br>
+<p><strong>チャプターファイルをこのウィンドウにドラッグ＆ドロップ<a href="" id="select_file_link">またはファイルを選択</a>してください。</strong><br>
 複数のチャプターを一度にドラッグ＆ドロップすると、よしなに結合します。（まだ未実装）</p>
+<input type="file" id="select_file">
+<p><input id="time_offset" placeholder="0:00:00.000">だけ時間ずらす（２枚目対応など）</p>
 
 <h4>変換結果ダウンロード</h4>
 <div id="input" class="alert alert-danger" role="alert">まだチャプターが読み込まれてません。</div>
@@ -150,7 +176,7 @@
   <div class="panel-heading">muxer, remuxer (L-SMASH)の場合</div>
   <div class="panel-body">
     入力はNero形式-1かNero形式-2。<br>
-    Apple形式は埋め込み先の動画がApple MP4かMOVの時には自動的に変換されて入る。（<a href="http://vfrmaniac.fushizen.eu/contents/lsmash_faq.html" target="_blank">参考</a>）
+    remuxerのときは、埋め込み先の動画がApple MP4かMOVの時のみApple形式も埋め込まれる（<a href="http://vfrmaniac.fushizen.eu/contents/lsmash_faq.html" target="_blank">参考</a>）
   </div>
   <div class="panel-footer">
     <samp>muxer -i <em>mov.raw</em> -i <em>aud.aac</em> --chapter <em>chap.txt</em> --file-format m4a -o <em>out.mp4</em></samp><br>
@@ -162,8 +188,8 @@
 <h4>補足事項</h4>
 <ul>
   <li>文字コードはUTF-8のみ使用可能</li>
-  <li>0秒と動画の最後にチャプターを自動追加します（テキストのものは最初のみ）</li>
-  <li>VLCやMPCはNero形式、Apple製品全般はApple形式を必要とするようです</li>
+  <li>0秒と動画の最後にチャプターが無い場合、自動追加します（テキストのものは最初のみ）</li>
+  <li>VLCやMPCはNero形式、iPhoneやiTunesなどのApple製品全般はApple形式のチャプターが必要なようです</li>
 </ul>
 
 <hr size="1">
