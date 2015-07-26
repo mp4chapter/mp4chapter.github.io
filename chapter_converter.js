@@ -11,10 +11,22 @@ $(document).on('drop', '#dropin', function(e) {
   var evt = e.originalEvent;
   if (evt.dataTransfer && evt.dataTransfer.files.length != 0) {
     var files = evt.dataTransfer.files;
-    var file = files[0];
-    ga('send', 'event', 'chapter', 'drop', file.name, 1);
-    readFile(file);
-    console.log(file);
+    ga('send', 'event', 'chapter', 'drop', files[0].name, 1);
+    if (files.length) {
+      ga('send', 'event', 'chapter', 'drop', 'multi', 1);
+    }
+    var promises = Array.prototype.concat.apply([], files).map(function(file) {
+      return readFile(file);
+    });
+    $.when.apply($, promises).then(function() {
+      console.log(arguments);
+      var chap = convertTimes(concatChapters(arguments));
+      console.log(
+        chap
+      );
+    }, function() {
+      console.log('failed');
+    });
   }
   return false;
 });
@@ -43,8 +55,23 @@ function uniqueChapter(chap, warn) {
 }
 
 // chap1, chap2 must be sorted.
-function concatChapters(chap1, chap2) {
-  
+function concatChapters(chaps) {
+  //return chaps[0]; // TODO:
+
+  var newChap = [];
+  var start = 0.0;
+  for (var chapIndex = 0; chapIndex < chaps.length; ++chapIndex) {
+    var chap = chaps[chapIndex];
+    var lastTime = 0.0;
+    for (var i = 0; i < chap.length; ++i) {
+      var c = chap[i];
+      c.time += start;
+      lastPos = c.time;
+      newChap.push(c);
+    }
+    start = lastPos;
+  }
+  return newChap;
 }
 
 function parseInt32(b, offset) {
@@ -304,6 +331,7 @@ function convertTimes(chap) {
     var ms = ('00' + (Math.floor((t % 1) * 1000)).toFixed(0)).slice(-3);
     chap[i].time_str = h + ':' + m + ':' + s + '.' + ms;
   }
+  return chap;
 }
 
 function makeOutput(chap, offset_str) {
@@ -343,48 +371,59 @@ function makeOutput(chap, offset_str) {
   return out;
 }
 
+function setView(chap, file, offset_str) {
+  var dropTargets = ['nero1', 'nero2', 'apple'];
+  var out = makeOutput(chap, offset_str);
+  console.log(out.nero1);
+  for (var i = 0; i < dropTargets.length; ++i) {
+    var t = dropTargets[i];
+    $('#get_' + t)
+      .removeClass('disabled')
+      .attr('target', '_blank')
+      .attr('draggable', true)
+      .attr('download', file.name + '_' + t + '.txt')
+      .attr('href', 'data:text/plain;base64,' + encodeURIComponent(Base64.encode(out[t])));
+  }
+  $('#input')
+    .text(file.name + 'を読み込みました。')
+    .removeClass('alert-danger')
+    .addClass('alert-success');
+}
+
+function setViewError(file, e) {
+  var dropTargets = ['nero1', 'nero2', 'apple'];
+  // disable get_s
+  for (var i = 0; i < dropTargets.length; ++i) {
+    var t = dropTargets[i];
+    $('#get_' + t).addClass('disabled');
+  }
+  // show error
+  $('#input')
+    .text(file.name + 'の処理でエラーが発生しました。' + "\r\n" + e.toString())
+    .removeClass('alert-success')
+    .addClass('alert-danger');
+  ga('send', 'exception', {
+    'exDescription': 'ProcessingError',
+    'exFatal': false
+  });
+}
+
 function readFile(file, startTime) {
+  var d = new $.Deferred;
   var reader = new FileReader();
   reader.onload = function(event) {
     // ファイルのデータが入ったStringを取得
     var data = event.target.result;
     var size = data.length;
 
-    var dropTargets = ['nero1', 'nero2', 'apple'];
     try {
       var chap = readChapterFile(data);
       var offset_str = $('#time_offset').val();
-      var out = makeOutput(chap, offset_str);
-      console.log(out.nero1);
-      
-      for (var i = 0; i < dropTargets.length; ++i) {
-        var t = dropTargets[i];
-        $('#get_' + t)
-          .removeClass('disabled')
-          .attr('target', '_blank')
-          .attr('draggable', true)
-          .attr('download', file.name + '_' + t + '.txt')
-          .attr('href', 'data:text/plain;base64,' + encodeURIComponent(Base64.encode(out[t])));
-      }
-      $('#input')
-        .text(file.name + 'を読み込みました。')
-        .removeClass('alert-danger')
-        .addClass('alert-success');
+      setView(chap, file, offset_str);
+      d.resolve(chap);
     } catch(e) {
-      // disable get_s
-      for (var i = 0; i < dropTargets.length; ++i) {
-        var t = dropTargets[i];
-        $('#get_' + t).addClass('disabled');
-      }
-      // show error
-      $('#input')
-        .text(file.name + 'の処理でエラーが発生しました。' + "\r\n" + e.toString())
-        .removeClass('alert-success')
-        .addClass('alert-danger');
-      ga('send', 'exception', {
-        'exDescription': 'ProcessingError',
-        'exFatal': false
-      });
+      setViewError(file, e);
+      d.reject();
       throw e;
     }
   };
@@ -395,6 +434,7 @@ function readFile(file, startTime) {
       'exDescription': 'ReadError',
       'exFatal': false
     });
+    d.reject();
   };
 
   var limit = 128 * 1024;
