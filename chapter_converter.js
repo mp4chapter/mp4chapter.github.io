@@ -166,6 +166,45 @@ function readMPLS(first, b) {
   return o;
 }
 
+function readIFO(first, b) {
+  // DVD IFO file
+  var headerIFOVTS = 'DVDVIDEO-VTS';
+  if (first.substring(0, 12) != headerIFOVTS) {
+    return;
+  }
+  var o = [];
+  var offsetToPCGI = 2048 * parseInt32(b, 0x00CC);
+  var aPCGI = b.subarray(offsetToPCGI);
+  var numPC = parseInt16(aPCGI);
+  for (var i = 0; i < numPC; ++i) {
+    if (aPCGI[8 + 8 * i] & 0x80) {
+      // entry PCG
+      var offsetToPCG = parseInt32(aPCGI, 8 + 8 * i + 4);
+      var duration = parsePlaybackBCD(aPCGI, offsetToPCG + 0x0004);
+      o.push({
+        time: duration,
+        title: 'MOVIE_END'
+      });
+      var offsetToPlaybackInfo = parseInt16(aPCGI, offsetToPCG + 0x00E8);
+      var offsetToPlaybackInfoNext = parseInt16(aPCGI, offsetToPCG + 0x00EA);
+      var infoLength = offsetToPlaybackInfoNext - offsetToPlaybackInfo;
+      var numInfo = infoLength / 24;
+      var aInfo = aPCGI.subarray(offsetToPCG + offsetToPlaybackInfo);
+      var startTime = 0;
+      for (var j = 0; j < numInfo; ++j) {
+        var chapterDuration = parsePlaybackBCD(aInfo, 24 * j + 4);
+        o.push({
+          time: startTime,
+          title: ''
+        });
+        startTime += chapterDuration;
+      }
+      break; // TODO: first program only
+    }
+  }
+  return o;
+}
+
 function readChapterFile(data) {
   var b = new Uint8Array(data);
   data = buff2str(b);
@@ -181,7 +220,8 @@ function readChapterFile(data) {
   var m, m1, m2;
 
   var readFunc = [
-    readMPLS
+    readMPLS,
+    readIFO
   ];
   
   var read_o;
@@ -194,37 +234,6 @@ function readChapterFile(data) {
 
   if (read_o) {
     o = read_o;
-  } else if (first.substring(0, 12) == headerIFOVTS) {
-    // DVD IFO file
-    var offsetToPCGI = 2048 * parseInt32(b, 0x00CC);
-    var aPCGI = b.subarray(offsetToPCGI);
-    var numPC = parseInt16(aPCGI);
-    for (var i = 0; i < numPC; ++i) {
-      if (aPCGI[8 + 8 * i] & 0x80) {
-        // entry PCG
-        var offsetToPCG = parseInt32(aPCGI, 8 + 8 * i + 4);
-        var duration = parsePlaybackBCD(aPCGI, offsetToPCG + 0x0004);
-        o.push({
-          time: duration,
-          title: 'MOVIE_END'
-        });
-        var offsetToPlaybackInfo = parseInt16(aPCGI, offsetToPCG + 0x00E8);
-        var offsetToPlaybackInfoNext = parseInt16(aPCGI, offsetToPCG + 0x00EA);
-        var infoLength = offsetToPlaybackInfoNext - offsetToPlaybackInfo;
-        var numInfo = infoLength / 24;
-        var aInfo = aPCGI.subarray(offsetToPCG + offsetToPlaybackInfo);
-        var startTime = 0;
-        for (var j = 0; j < numInfo; ++j) {
-          var chapterDuration = parsePlaybackBCD(aInfo, 24 * j + 4);
-          o.push({
-            time: startTime,
-            title: ''
-          });
-          startTime += chapterDuration;
-        }
-        break; // TODO: first program only
-      }
-    }
   } else if (first.match(regNero1)) {
     for (var i = 0; i < n; ++i) {
       if (m = a[i].match(regNero1)) {
