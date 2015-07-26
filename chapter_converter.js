@@ -7,6 +7,7 @@ $(document).on('dragover', '#dropin', function(e) {
 });
 
 $(document).on('drop', '#dropin', function(e) {
+  clearPreview();
   e.preventDefault();
   var evt = e.originalEvent;
   if (evt.dataTransfer && evt.dataTransfer.files.length != 0) {
@@ -24,6 +25,7 @@ $(document).on('drop', '#dropin', function(e) {
       console.log(
         chap
       );
+      showPreview(chap);
     }, function() {
       console.log('failed');
     });
@@ -408,6 +410,28 @@ function setViewError(file, e) {
   });
 }
 
+function clearPreview() {
+  $('#preview_description').show(false);
+  $('#preview_table').hide(false);
+}
+
+function showPreview(chap) {
+  var el = $('#preview_template');
+  var pel = el.parent();
+  var template = el.html();
+  $('.inserted').remove();
+  $('#preview_description').hide(false);
+  $('#preview_table').show(false)
+
+  for (var i = 0; i < chap.length; ++i) {
+    var c = chap[i];
+    var str = template.replace('{{no}}', (i + 1) + '.')
+        .replace('{{time}}', c.time_str)
+        .replace('{{title}}', c.title);
+    pel.append('<tr class="inserted">' + str + '</tr>');
+  }
+}
+
 function readFile(file, startTime) {
   var d = new $.Deferred;
   var reader = new FileReader();
@@ -447,6 +471,7 @@ function readFile(file, startTime) {
   }
   //reader.readAsText(blob);
   reader.readAsArrayBuffer(blob);
+  return d.promise();
 }
 
 $('#get_nero1,#get_nero2,#get_apple').on('dragstart', function(event) {

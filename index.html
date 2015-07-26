@@ -32,6 +32,14 @@
   .addthis_native_toolbox {
     max-height: 20px;
   }
+
+  #preview_table {
+    display: none;
+  }
+  
+  #preview_template {
+    display: none;
+  }
   </style>
 </head>
 <body><div>
@@ -147,6 +155,13 @@
     </div>
   </div>
 </div>
+
+<h4>変換結果プレビュー</h4>
+<div id="preview_description" class="alert alert-warning">プレビューは読み込み後表示されます。</div>
+<table id="preview_table" class="table table-striped table-condensed">
+<tr><th width="50">No.</th><th width="120">Time</th><th>Title</th></tr>
+<tr id="preview_template"><td style="text-align: right;">{{no}}.</td><td>{{time}}</td><td>{{title}}</td></tr>
+</table>
 
 <h4>MP4にチャプターを埋め込む方法</h4>
 
