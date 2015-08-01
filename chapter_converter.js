@@ -11,12 +11,12 @@ $(document).on('drop', '#dropin', function(e) {
   e.preventDefault();
   var evt = e.originalEvent;
   if (evt.dataTransfer && evt.dataTransfer.files.length != 0) {
-    var files = evt.dataTransfer.files;
+    var files = Array.prototype.concat.apply([], evt.dataTransfer.files);
     ga('send', 'event', 'chapter', 'drop', files[0].name, 1);
     if (files.length) {
       ga('send', 'event', 'chapter', 'drop', 'multi', 1);
     }
-    var promises = Array.prototype.concat.apply([], files).map(function(file) {
+    var promises = files.map(function(file) {
       return readFile(file);
     });
     $.when.apply($, promises).then(function() {
@@ -26,6 +26,8 @@ $(document).on('drop', '#dropin', function(e) {
         chap
       );
       showPreview(chap);
+      var offset_str = $('#time_offset').val();
+      setView(chap, files, offset_str);
     }, function() {
       console.log('failed');
     });
@@ -387,11 +389,12 @@ function setView(chap, files, offset_str) {
       .removeClass('disabled')
       .attr('target', '_blank')
       .attr('draggable', true)
-      .attr('download', file.name + '_' + t + '.txt')
+      .attr('download', files[0].name + '_' + t + '.txt')
       .attr('href', 'data:text/plain;base64,' + encodeURIComponent(Base64.encode(out[t])));
   }
+  var text = files.map(function(e) { return e.name; }).join(',');
   $('#input')
-    .text(file.name + 'を読み込みました。')
+    .text(text + 'を読み込みました。')
     .removeClass('alert-danger')
     .addClass('alert-success');
 }
@@ -446,8 +449,6 @@ function readFile(file, startTime) {
 
     try {
       var chap = readChapterFile(data);
-      var offset_str = $('#time_offset').val();
-      setView(chap, file, offset_str);
       d.resolve(chap);
     } catch(e) {
       setViewError(file, e);
