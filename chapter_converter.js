@@ -241,7 +241,6 @@ function readChapterFile(data) {
   var n = a.length;
   var first = a[0];
   var o = [];
-  var headerIFOVTS = 'DVDVIDEO-VTS';
   var regNero1 = /^(\d+:\d+:\d+(?:\.\d+))[ \t](.*)$/;
   var regNero2_1 = /^CHAPTER\d+=(\d+:\d+:\d+(?:\.\d+))$/;
   var regNero2_2 = /^CHAPTER\d+NAME=(.+)$/;
@@ -338,7 +337,8 @@ function convertTimes(chap) {
 
 function makeOutput(chap, offset_str) {
   var out = {};
-  var nero1 = [], nero2 = [], apple = [];
+  var nero1 = [], nero2 = [], apple = [], key30 = [], key24 = [];
+  var fps30 = 30000 / 1001, fps24 = 24000 / 1001;
   apple.push('<textstream version="1.1">', '<textstreamheader>', '<textsampledescription>',
              '</textsampledescription>', '</textstreamheader>');
   var c, cnt;
@@ -364,17 +364,21 @@ function makeOutput(chap, offset_str) {
     nero2.push('CHAPTER' + cnt + '=' + c.time_str);
     nero2.push('CHAPTER' + cnt + 'NAME=' + c.title);
     apple.push('<textsample sampletime="' + c.time_str + '">' + c.title + '</textsample>');
+    key30.push((c.time * fps30 + 1).toFixed(0));
+    key24.push((c.time * fps24 + 1).toFixed(0));
   }
   apple.push('</textstream>');
 
   out.nero1 = nero1.join("\r\n");
   out.nero2 = nero2.join("\r\n");
   out.apple = apple.join("\r\n");
+  out.key30 = key30.join("\r\n");
+  out.key24 = key24.join("\r\n");
   return out;
 }
 
-function setView(chap, file, offset_str) {
-  var dropTargets = ['nero1', 'nero2', 'apple'];
+function setView(chap, files, offset_str) {
+  var dropTargets = ['nero1', 'nero2', 'apple', 'key30', 'key24'];
   var out = makeOutput(chap, offset_str);
   console.log(out.nero1);
   for (var i = 0; i < dropTargets.length; ++i) {
@@ -474,7 +478,7 @@ function readFile(file, startTime) {
   return d.promise();
 }
 
-$('#get_nero1,#get_nero2,#get_apple').on('dragstart', function(event) {
+$('#get_nero1,#get_nero2,#get_apple,#get_key30,#get_key24').on('dragstart', function(event) {
   var el = $(this);
   var fileName = el.attr('download');
   var content = el.attr('href');
